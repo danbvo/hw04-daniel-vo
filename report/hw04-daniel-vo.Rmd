@@ -1,0 +1,305 @@
+---
+title: "hw04"
+author: "Daniel Vo"
+date: "4/8/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{R}
+library(XML)
+library(stringr)
+library(ggplot2)
+library(dplyr)
+getwd()
+tbl_html <- data.frame(readHTMLTable('http://cran.r-project.org/src/contrib/Archive/stringr'))
+tbl_html <- na.omit(tbl_html)
+tbl_html <- subset(tbl_html, select = -c(1))
+
+colnames(tbl_html) <- c('name', ' last modified', 'size', ' description')
+
+tbl_html
+
+read_archive <- function(x){
+  master_url <- "http://cran.r-project.org/src/contrib/Archive/"
+  package <- data.frame(readHTMLTable(paste(master_url,x, sep = "")))
+  package <- na.omit(package)
+  package <- subset(package, select = -c(1))
+  colnames(package) <- c('name', ' last modified', 'size', ' description')
+  return(package)
+}
+x <- read_archive("ggplot2")
+
+
+#
+clean_archive <- function(x){
+  splitup <- str_split(x$name, pattern = "_")
+  namecol <- matrix("", nrow = length(splitup), ncol = 1)
+  for (i in 2:length(splitup)){
+    namecol[i,] <- splitup[[i]][1]
+  }
+  name <- namecol
+  verscol <- matrix("", nrow = length(splitup), ncol = 1)
+  for (i in 2:length(splitup)){
+    verscol[i,] <- splitup[[i]][2]
+  }
+  version <- str_sub(verscol, end = -8)
+  date <- str_sub(x$` last modified`, start = 1, end = 10)
+  type <- str_detect(x$size, "M")
+  sizeM <- suppressWarnings(as.numeric(str_replace(x$size, "M", ""))*1000)
+  sizeK <- suppressWarnings(as.numeric(str_replace(x$size, "K", "")))
+  size <- ifelse(type, sizeM, sizeK)
+  clean_package <- data.frame(name, version, date, size)
+  clean_package <- clean_package[-1,]
+  return(clean_package)
+}
+
+raw <- read_archive("XML")
+clean_data <- clean_archive(raw)
+
+
+
+write.csv(clean_data, file = "stringr-archive.csv")
+
+plot_archive <- function(clean_data){
+  clean_data <- arrange(clean_data, clean_data$date)
+  clean_data$date <- as.Date(clean_data$date)
+  ggplot(data = clean_data, aes(date, size)) +
+    geom_step() +
+    geom_point()
+}
+
+raw <- read_archive("dplyr")
+clean_data <- clean_archive(raw)
+plot_archive(clean_data)
+
+# 1.5
+clean_dplyr <- clean_archive(read_archive("dplyr"))
+write.csv(clean_dplyr, file = "dplyr-archive.csv")
+clean_knitr <- clean_archive(read_archive("knitr"))
+write.csv(clean_knitr, file = "knitr-archive.csv")
+clean_ggplot2 <- clean_archive(read_archive("ggplot2"))
+write.csv(clean_ggplot2, file = "ggplot2-archive.csv")
+clean_xml <- clean_archive(read_archive("XML"))
+write.csv(clean_xml, file = "xml-archive.csv")
+
+table <- rbind(clean_dplyr, clean_knitr, clean_ggplot2, clean_xml)
+table$date <- as.Date(table$date)
+
+ggplot(table, aes(date, size, color = name)) +
+  geom_step(direction = "hv")
+
+ggplot(table, aes(date, size, color = name)) +
+  geom_step(direction = "hv") + 
+  facet_wrap(~name, scales = "free")
+```
+
+
+#Regex Function
+```{R}
+#1
+split_chars <- function(x){
+  element <- str_sub(x, start = c(1:str_count(x)), end = c(1:str_count(x)))
+  return(element)
+}
+split_chars("Go Bears!")
+split_chars('Expecto Patronum')
+
+#2
+num_vowels <- function(x){
+  a <- sum(x == "A" | x == "a")
+  e <- sum(x == "E" | x == "e")
+  i <- sum(x == "I" | x == "i")
+  o <- sum(x == "O" | x == "o")
+  u <- sum(x == "U" | x == "u")
+  vowel <- c(a,e,i,o,u)
+  name <- c("a", "e", "i", "o", "u")
+  names(vowel) <- name
+  #list <- list(name, vowel)
+  return(vowel)
+}
+num_vowels(vec)
+vec <- c("G", "g", "o", "O", 'i', 'a')
+
+
+
+#3
+
+count_vowels <- function(x){
+  a <- str_replace(x, pattern = " ", replacement = "")
+  b <- split_chars(a)
+  c <- num_vowels(b)
+  return(c)
+}
+
+count_vowels("HELLO WORLD, MY NAME IS DANIEL")
+
+#4
+reverse_chars <- function(x){
+  r <- str_sub(x, start = -c(1:str_count(x)), end = -c(1:str_count(x)))
+  reverse <- paste(r, collapse = "")
+  return(reverse)
+}
+
+reverse_chars("hello world")
+
+#5
+reverse_words <- function(x){
+  destring <- unlist(str_split(x, pattern = " "))
+  reverse <- rev(destring)
+  restring <- paste(reverse, collapse = " ")
+  return(restring)
+}
+
+reverse_words("Hello World")
+
+h <- c("lalala", "hehehe")
+k <- paste(h, collapse = " ")
+
+
+i <- unlist(str_split(k, " "))
+
+rev(i)
+paste(rev(i), collapse = " ")
+
+
+
+
+
+
+
+
+
+```
+
+
+# Data: Emotion in Text
+```{R}
+setwd("/Users/danbvo/Desktop/Academic-Portfolio/Stat-133/HW/hw04/data")
+url = "https://raw.githubusercontent.com/ucb-stat133/stat133-spring-2018/master/data/text-emotion.csv"
+download.file(url, destfile = "text-emotion.csv")
+dat <- read.csv(file = "text-emotion.csv")
+
+# number of characters without space
+a <- str_replace_all(dat$content, pattern = " |  ", replacement = "")
+dat$num_char <- as.numeric(str_count(a))
+summary(dat$num_char)
+
+ggplot(dat) +
+  geom_histogram(aes(dat$num_char), binwidth = 5)+
+  theme_classic()
+
+
+```
+
+
+
+```{r}
+subset <- unlist(str_split(dat$content, pattern = " "))
+subset
+a <- str_detect(subset, "\\@")
+string <- character(length(subset))
+for (i in 1:length(a)) {
+  if (a[i]==TRUE) {
+    string[i] <- paste(subset[i])
+  } else {
+    string[i] <- NA
+  }
+}
+
+string
+string <- na.omit(string)
+
+b <- nchar(string)
+for (i in 1:length(b)){
+  if (b[i]==1){
+    string[i] <- NA
+  } else {
+    string[i] <- paste(string[i])
+  }
+}
+string <- na.omit(string)
+
+c <- str_detect(string, pattern = "!|~|#|%|&")
+
+for (i in 1:length(c)){
+  if (c[i]==TRUE) {
+    string[i] <- NA
+  } else {
+    string[i] <- paste(string[i])
+  }
+}
+
+num_tag <- na.omit(string)
+summary(num_tag) #19985 mentions
+
+```
+
+
+```{r}
+d <- str_detect(subset, "\\#")
+hash <- character(length(subset))
+for (i in 1:length(d)) {
+  if (d[i]==TRUE) {
+    hash[i] <- paste(subset[i])
+  } else {
+    hash[i] <- NA
+  }
+}
+
+hash
+hash <- na.omit(hash)
+
+e <- nchar(hash)
+for (i in 1:length(e)){
+  if (e[i]<3){
+    hash[i] <- NA
+  } else {
+    hash[i] <- paste(hash[i])
+  }
+}
+hash <- na.omit(hash)
+
+f <- str_detect(hash, pattern = "!|~|@")
+
+for (i in 1:length(f)){
+  if (f[i]==TRUE) {
+    hash[i] <- NA
+  } else {
+    hash[i] <- paste(hash[i])
+  }
+}
+
+num_hash <- na.omit(hash)
+summary(num_hash) #914 hashtags
+
+len_hash <- str_length(num_hash)-1
+avg_hash_length <- mean(len_hash)
+unique_val <- unique(len_hash)
+
+match <- tabulate(match(len_hash, unique(len_hash)))
+match[which.max(match)] 
+
+unique_val
+match
+
+# Most common value = 4
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
