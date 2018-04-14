@@ -89,12 +89,16 @@ write.csv(clean_xml, file = "xml-archive.csv")
 table <- rbind(clean_dplyr, clean_knitr, clean_ggplot2, clean_xml)
 table$date <- as.Date(table$date)
 
+png("all-in-one.png", width = 700, height = 500, res = 100)
 ggplot(table, aes(date, size, color = name)) +
   geom_step(direction = "hv")
+dev.off()
 
+png("facet-wrap.png", width = 1400, height = 1000, res = 100)
 ggplot(table, aes(date, size, color = name)) +
   geom_step(direction = "hv") + 
   facet_wrap(~name, scales = "free")
+dev.off()
 ```
 
 
